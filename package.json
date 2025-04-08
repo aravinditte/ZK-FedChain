@@ -1,0 +1,19 @@
+{
+    "name": "zk-fedchain",
+    "version": "1.0.0",
+    "description": "A blockchain-based, privacy-preserving federated learning platform with token incentives",
+    "main": "truffle-config.js",
+    "scripts": {
+        "compile": "node compile.js",
+        "test": "truffle test",
+        "deploy": "truffle migrate --network development"
+    },
+    "dependencies": {
+        "@openzeppelin/contracts": "4.9.3",
+        "truffle": "^5.11.5"
+    },
+    "devDependencies": {
+        "chai": "^4.3.7",
+        "dotenv": "^16.0.3"
+    }
+}
