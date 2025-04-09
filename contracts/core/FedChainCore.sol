@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -11,25 +11,29 @@ import "../interfaces/IZKVerifier.sol";
 contract FedChainCore is Ownable, ReentrancyGuard {
     using Counters for Counters.Counter;
     
+    // Contract state variables
     IFedToken public fedToken;
     IModelNFT public modelNFT;
     IZKVerifier public zkVerifier;
     
     Counters.Counter public roundId;
-    uint256 public roundDuration = 1 days;
+    uint256 public roundDuration = 5 minutes;
     uint256 public minParticipants = 3;
     uint256 public stakingAmount = 100 * 10**18;
     
     string public currentModelIpfsHash;
     uint256 public currentModelVersion;
     
+    // Participant structure and mapping
     struct Participant {
         bool isRegistered;
         uint256 stakedAmount;
         uint256 totalRewards;
         uint256 lastActiveRound;
     }
+    mapping(address => Participant) public participants;
     
+    // Round structure and mappings
     struct Round {
         uint256 startTime;
         uint256 endTime;
@@ -40,18 +44,17 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         mapping(address => string) gradientHashes;
         mapping(address => uint256) rewards;
     }
-    
-    mapping(address => Participant) public participants;
     mapping(uint256 => Round) public rounds;
     mapping(uint256 => address[]) public roundParticipants;
     
+    // Event declarations
     event ParticipantRegistered(address indexed participant, uint256 stakedAmount);
     event RoundStarted(uint256 indexed roundId, uint256 startTime, uint256 endTime);
     event GradientSubmitted(uint256 indexed roundId, address indexed participant, string gradientIpfsHash);
     event RoundFinalized(uint256 indexed roundId, string resultModelIpfsHash, uint256 modelVersion);
-    event RewardDistributed(uint256 indexed roundId, address indexed participant, uint256 amount);
     event ModelMinted(uint256 indexed tokenId, uint256 version, string ipfsHash);
-    
+    event RewardDistributed(uint256 indexed roundId, address indexed participant, uint256 amount);
+
     constructor(
         address _fedTokenAddress,
         address _modelNFTAddress,
@@ -70,9 +73,9 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         rounds[currentRoundId].startTime = block.timestamp;
         rounds[currentRoundId].endTime = block.timestamp + roundDuration;
         
-        emit RoundStarted(currentRoundId, rounds[currentRoundId].startTime, rounds[currentRoundId].endTime);
+        emit RoundStarted(currentRoundId, block.timestamp, block.timestamp + roundDuration);
     }
-    
+
     function register() external nonReentrant {
         require(!participants[msg.sender].isRegistered, "Already registered");
         require(fedToken.transferFrom(msg.sender, address(this), stakingAmount), "Staking failed");
@@ -86,7 +89,7 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         
         emit ParticipantRegistered(msg.sender, stakingAmount);
     }
-    
+
     function submitGradient(
         uint256 _roundId,
         string memory _gradientIpfsHash,
@@ -103,18 +106,17 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         rounds[_roundId].hasSubmitted[msg.sender] = true;
         rounds[_roundId].gradientHashes[msg.sender] = _gradientIpfsHash;
         rounds[_roundId].participantCount++;
-        roundParticipants[_roundId].push(msg.sender);
         
+        roundParticipants[_roundId].push(msg.sender);
         participants[msg.sender].lastActiveRound = _roundId;
         
         emit GradientSubmitted(_roundId, msg.sender, _gradientIpfsHash);
         
-        if (rounds[_roundId].participantCount >= minParticipants && 
-            block.timestamp >= rounds[_roundId].endTime) {
+        if (rounds[_roundId].participantCount >= minParticipants && block.timestamp >= rounds[_roundId].endTime) {
             _finalizeRound(_roundId);
         }
     }
-    
+
     function finalizeRound(uint256 _roundId) external onlyOwner {
         require(_roundId == roundId.current(), "Invalid round");
         require(block.timestamp > rounds[_roundId].endTime, "Round not ended");
@@ -123,7 +125,7 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         
         _finalizeRound(_roundId);
     }
-    
+
     function _finalizeRound(uint256 _roundId) internal {
         currentModelVersion++;
         
@@ -132,13 +134,12 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         rounds[newRoundId].startTime = block.timestamp;
         rounds[newRoundId].endTime = block.timestamp + roundDuration;
         
-        emit RoundStarted(newRoundId, rounds[newRoundId].startTime, rounds[newRoundId].endTime);
+        emit RoundStarted(newRoundId, block.timestamp, block.timestamp + roundDuration);
         
         rounds[_roundId].finalized = true;
-        
         emit RoundFinalized(_roundId, currentModelIpfsHash, currentModelVersion);
     }
-    
+
     function updateModel(
         uint256 _roundId,
         string memory _newModelIpfsHash,
@@ -165,7 +166,7 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         
         emit ModelMinted(tokenId, currentModelVersion, _newModelIpfsHash);
     }
-    
+
     function distributeRewards(uint256 _roundId, address[] memory _participants, uint256[] memory _rewards) external onlyOwner {
         require(rounds[_roundId].finalized, "Round not finalized");
         require(_participants.length == _rewards.length, "Arrays length mismatch");
@@ -181,15 +182,14 @@ contract FedChainCore is Ownable, ReentrancyGuard {
             participants[participant].totalRewards += reward;
             
             fedToken.mint(participant, reward);
-            
             emit RewardDistributed(_roundId, participant, reward);
         }
     }
-    
+
     function getRoundParticipants(uint256 _roundId) external view returns (address[] memory) {
         return roundParticipants[_roundId];
     }
-    
+
     function getParticipantReward(uint256 _roundId, address _participant) external view returns (uint256) {
         return rounds[_roundId].rewards[_participant];
     }

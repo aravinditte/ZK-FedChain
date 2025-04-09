@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -44,8 +44,19 @@ contract ModelNFT is ERC721URIStorage, Ownable, IModelNFT {
         return newModelId;
     }
     
-    function getModelMetadata(uint256 tokenId) external view returns (ModelMetadata memory) {
+    function getModelMetadata(uint256 tokenId) external override view returns (
+        string memory ipfsHash,
+        uint256 version,
+        uint256 accuracy,
+        uint256 timestamp
+    ) {
         require(_exists(tokenId), "Model does not exist");
-        return models[tokenId];
+        ModelMetadata memory metadata = models[tokenId];
+        return (
+            metadata.ipfsHash,
+            metadata.version,
+            metadata.accuracy,
+            metadata.timestamp
+        );
     }
 }

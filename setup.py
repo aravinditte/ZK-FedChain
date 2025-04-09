@@ -96,7 +96,7 @@ def setup_environment():
                 env_vars[key] = os.getenv(key)
     
     # Connect to Ethereum node
-    ethereum_node_url = env_vars.get('ETHEREUM_NODE_URL', 'http://localhost:8545')
+    ethereum_node_url = env_vars.get('ETHEREUM_NODE_URL', 'http://localhost:7545')
     w3 = Web3(Web3.HTTPProvider(ethereum_node_url))
     
     try:
