@@ -1,43 +1,34 @@
-const FedToken = artifacts.require("tokens/FedToken");
-const ModelNFT = artifacts.require("tokens/ModelNFT");
-const ZKVerifier = artifacts.require("core/ZKVerifier");
-const FedChainCore = artifacts.require("core/FedChainCore");
+const FedToken = artifacts.require("FedToken");
+const ModelNFT = artifacts.require("ModelNFT");
+const ZKVerifier = artifacts.require("ZKVerifier");
+const FedChainCore = artifacts.require("FedChainCore");
 
-module.exports = async function (deployer, network, accounts) {
-  const admin = accounts[0];
-  
-  // Deploy FedToken
+module.exports = async function (deployer) {
+  // Deploy contracts in proper order
   await deployer.deploy(FedToken);
-  const fedToken = await FedToken.deployed();
-  console.log(`FedToken deployed at: ${fedToken.address}`);
-  
-  // Deploy ModelNFT
   await deployer.deploy(ModelNFT);
+  
+  // Deploy ZKVerifier with dummy keys
+  const gradientKey = web3.utils.asciiToHex("gradient-dummy-key");
+  const trainingKey = web3.utils.asciiToHex("training-dummy-key");
+  await deployer.deploy(ZKVerifier, gradientKey, trainingKey);
+
+  // Get deployed instances
+  const fedToken = await FedToken.deployed();
   const modelNFT = await ModelNFT.deployed();
-  console.log(`ModelNFT deployed at: ${modelNFT.address}`);
-  
-  // Deploy ZKVerifier with dummy verification keys
-  const gradientVerificationKey = "0x1234";
-  const trainingVerificationKey = "0x5678";
-  await deployer.deploy(ZKVerifier, gradientVerificationKey, trainingVerificationKey);
   const zkVerifier = await ZKVerifier.deployed();
-  console.log(`ZKVerifier deployed at: ${zkVerifier.address}`);
-  
-  // Deploy FedChainCore with initial model hash
-  const initialModelIpfsHash = "QmInitialModelHash";
+
+  // Deploy FedChainCore with initial parameters
   await deployer.deploy(
     FedChainCore,
     fedToken.address,
     modelNFT.address,
     zkVerifier.address,
-    initialModelIpfsHash
+    "QmInitialModelHash" // Initial model IPFS hash
   );
+
+  // Transfer ownership of token contracts
   const fedChainCore = await FedChainCore.deployed();
-  console.log(`FedChainCore deployed at: ${fedChainCore.address}`);
-  
-  // Transfer ownership of token contracts to FedChainCore
   await fedToken.transferOwnership(fedChainCore.address);
   await modelNFT.transferOwnership(fedChainCore.address);
-  
-  console.log("Contract deployment and setup complete!");
 };

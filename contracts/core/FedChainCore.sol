@@ -18,7 +18,7 @@ contract FedChainCore is Ownable, ReentrancyGuard {
     
     Counters.Counter public roundId;
     uint256 public roundDuration = 5 minutes;
-    uint256 public minParticipants = 3;
+    uint256 public minParticipants = 1;
     uint256 public stakingAmount = 100 * 10**18;
     
     string public currentModelIpfsHash;
@@ -90,6 +90,7 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         emit ParticipantRegistered(msg.sender, stakingAmount);
     }
 
+
     function submitGradient(
         uint256 _roundId,
         string memory _gradientIpfsHash,
@@ -106,16 +107,18 @@ contract FedChainCore is Ownable, ReentrancyGuard {
         rounds[_roundId].hasSubmitted[msg.sender] = true;
         rounds[_roundId].gradientHashes[msg.sender] = _gradientIpfsHash;
         rounds[_roundId].participantCount++;
-        
         roundParticipants[_roundId].push(msg.sender);
+        
         participants[msg.sender].lastActiveRound = _roundId;
         
         emit GradientSubmitted(_roundId, msg.sender, _gradientIpfsHash);
         
-        if (rounds[_roundId].participantCount >= minParticipants && block.timestamp >= rounds[_roundId].endTime) {
+        // Auto-finalize if minimum participants reached
+        if (rounds[_roundId].participantCount >= minParticipants) {
             _finalizeRound(_roundId);
         }
     }
+
 
     function finalizeRound(uint256 _roundId) external onlyOwner {
         require(_roundId == roundId.current(), "Invalid round");

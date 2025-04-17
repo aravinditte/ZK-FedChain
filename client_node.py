@@ -29,7 +29,7 @@ def main():
     ipfs_handler = IPFSHandler()
     
     # Get participant address from private key
-    w3 = Web3(Web3.HTTPProvider(os.getenv('ETHEREUM_NODE_URL', 'http://localhost:8545')))
+    w3 = Web3(Web3.HTTPProvider(os.getenv('ETHEREUM_NODE_URL', 'http://localhost:7545')))
     account = w3.eth.account.from_key(args.private_key)
     participant_address = account.address
     
